@@ -8,9 +8,7 @@ from torch.utils.data import DataLoader, Subset  # , random_split
 from torchvision import transforms
 
 # Note - you must have torchvision installed for this example
-from torchvision.datasets import CIFAR10, MNIST, FashionMNIST
-
-from lib.datasets import SalientCIFAR
+from torchvision.datasets import MNIST
 
 
 # For older versions of torch
@@ -79,7 +77,7 @@ class MNISTDataModule(LightningDataModule):
     def __init__(
         self,
         data_dir: str = "./data",
-        batch_size=64,
+        batch_size=200,
         labels=None,
         shape=(28, 28),
         n_train_samples=None,
@@ -90,18 +88,16 @@ class MNISTDataModule(LightningDataModule):
 
         self.transform = transforms.Compose(
             [
-                transforms.RandomCrop(shape[0], padding=0),
-                # transforms.RandomHorizontalFlip(),
+                transforms.RandomCrop(shape, padding=0),
                 transforms.ToTensor(),
             ]
-        )  # no normalization - for robust evaluation
+        )
         self.transform_test = transforms.Compose(
             [transforms.CenterCrop(shape), transforms.ToTensor()]
         )  # no normalization - for robust evaluation
 
         self.batch_size = batch_size
         self.labels = labels
-        self.n_train_samples = n_train_samples
 
     def prepare_data(self):
         # download
@@ -110,21 +106,13 @@ class MNISTDataModule(LightningDataModule):
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
-        if stage == "fit" or stage is None:
-            mnist = self.get_mnist(self.data_dir, train=True, transform=self.transform)
-            # self.mnist_train, self.mnist_val, _ = random_split(mnist, [0.2, 0.2, 0.6])
-            # self.mnist_train, self.mnist_val, _ = random_split(mnist, [0.5, 0.1, 0.4])
-            self.mnist_train, self.mnist_val = random_split(mnist, [0.9, 0.1])
-            if self.n_train_samples:
-                self.mnist_train.indices = self.mnist_train.indices[
-                    : self.n_train_samples
-                ]
-
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage is None:
-            self.mnist_test = self.get_mnist(
-                self.data_dir, train=False, transform=self.transform_test
-            )
+        self.mnist_train = self.get_mnist(
+            self.data_dir, train=True, transform=self.transform
+        )
+        self.mnist_test = self.get_mnist(
+            self.data_dir, train=False, transform=self.transform_test
+        )
+        self.mnist_val, _ = random_split(self.mnist_test, [0.5, 0.5])
 
     def get_mnist(self, data_dir, train, transform):
         if self.labels is None:
@@ -139,196 +127,6 @@ class MNISTDataModule(LightningDataModule):
             transform=transform,
             target_transform=target_transform,
         )
-        if self.labels is None:
-            return mnist
-
-        indices = [
-            idx for idx, target in enumerate(mnist.targets) if target in self.labels
-        ]
-        return Subset(mnist, indices)
-
-    def train_dataloader(self, batch_size=None):
-        return DataLoader(
-            self.mnist_train, batch_size=(batch_size or self.batch_size), shuffle=True
-        )
-
-    def val_dataloader(self, batch_size=None):
-        return DataLoader(
-            self.mnist_val, batch_size=(batch_size or self.batch_size), shuffle=False
-        )
-
-    def test_dataloader(self, batch_size=None):
-        return DataLoader(
-            self.mnist_test, batch_size=(batch_size or self.batch_size), shuffle=False
-        )
-
-
-class CIFARDataModule(LightningDataModule):
-    def __init__(self, data_dir: str = "./data", batch_size=64, labels=None):
-        super().__init__()
-        self.data_dir = data_dir
-        # self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))])
-        self.transform = transforms.Compose(
-            [
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-            ]
-        )  # no normalization - for robust evaluation
-        self.transform_test = transforms.Compose(
-            [
-                transforms.ToTensor(),
-            ]
-        )
-
-        self.batch_size = batch_size
-        self.labels = labels
-
-    def prepare_data(self):
-        # download
-        CIFAR10(self.data_dir, train=True, download=True)
-        CIFAR10(self.data_dir, train=False, download=True)
-
-    def setup(self, stage=None):
-        # Assign train/val datasets for use in dataloaders
-        if stage == "fit" or stage is None:
-            cifar = self.get_cifar(self.data_dir, train=True, transform=self.transform)
-            self.cifar_train, self.cifar_val = random_split(cifar, [0.9, 0.1])
-
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage is None:
-            self.cifar_test = self.get_cifar(
-                self.data_dir, train=False, transform=self.transform_test
-            )
-
-    def get_cifar(self, data_dir, train, transform):
-        if self.labels is None:
-            target_transform = lambda x: x
-        else:
-            target_dict = {tgt: idx for idx, tgt in enumerate(self.labels)}
-            target_transform = lambda x: target_dict[x]
-
-        cifar = CIFAR10(
-            data_dir,
-            train=train,
-            transform=transform,
-            target_transform=target_transform,
-        )
-        if self.labels is None:
-            return cifar
-
-        indices = [
-            idx for idx, target in enumerate(cifar.targets) if target in self.labels
-        ]
-        return Subset(cifar, indices)
-
-    def train_dataloader(self, batch_size=None):
-        return DataLoader(
-            self.cifar_train, batch_size=(batch_size or self.batch_size), shuffle=True
-        )
-
-    def val_dataloader(self, batch_size=None):
-        return DataLoader(
-            self.cifar_val, batch_size=(batch_size or self.batch_size), shuffle=False
-        )
-
-    def test_dataloader(self, batch_size=None):
-        return DataLoader(
-            self.cifar_test, batch_size=(batch_size or self.batch_size), shuffle=False
-        )
-
-
-class SalientCIFARDataModule(CIFARDataModule):
-    def __init__(self, data_dir: str = "./data", batch_size=64, labels=None):
-        super().__init__()
-        self.data_dir = data_dir
-        # self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))])
-        self.transform = transforms.Compose(
-            [
-                # transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                # transforms.ToTensor(),
-            ]
-        )  # no normalization - for robust evaluation
-        self.transform_test = transforms.Compose(
-            [
-                transforms.ToTensor(),
-            ]
-        )
-
-        self.batch_size = batch_size
-        self.labels = labels
-
-    def get_cifar(self, data_dir, train, transform):
-        cifar = SalientCIFAR(data_dir, train=train, transform=transform)
-        if self.labels is None:
-            return cifar
-
-        indices = [
-            idx for idx, target in enumerate(cifar.targets) if target in self.labels
-        ]
-        return Subset(cifar, indices)
-
-
-class GrayCIFARDataModule(CIFARDataModule):
-    def __init__(self, data_dir: str = "./data", batch_size=64, labels=None):
-        super().__init__()
-        self.data_dir = data_dir
-        # self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))])
-        self.transform = transforms.Compose(
-            [
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                lambda x: x.mean(dim=0).unsqueeze(0),
-            ]
-        )  # no normalization - for robust evaluation
-        self.transform_test = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                lambda x: x.mean(dim=0).unsqueeze(0),
-            ]
-        )
-
-        self.batch_size = batch_size
-        self.labels = labels
-
-
-class FashionDataModule(LightningDataModule):
-    def __init__(self, data_dir: str = "./data", batch_size=64, labels=None):
-        super().__init__()
-        self.data_dir = data_dir
-        # self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
-        self.transform = transforms.Compose(
-            [transforms.ToTensor()]
-        )  # no normalization - for robust evaluation
-
-        self.batch_size = batch_size
-        self.labels = labels
-
-    def prepare_data(self):
-        # download
-        FashionMNIST(self.data_dir, train=True, download=True)
-        FashionMNIST(self.data_dir, train=False, download=True)
-
-    def setup(self, stage=None):
-        # Assign train/val datasets for use in dataloaders
-        if stage == "fit" or stage is None:
-            mnist = self.get_fashion(
-                self.data_dir, train=True, transform=self.transform
-            )
-            # self.mnist_train, self.mnist_val, _ = random_split(mnist, [0.2, 0.2, 0.6])
-            # self.mnist_train, self.mnist_val, _ = random_split(mnist, [0.5, 0.1, 0.4])
-            self.mnist_train, self.mnist_val = random_split(mnist, [0.9, 0.1])
-
-        # Assign test dataset for use in dataloader(s)
-        if stage == "test" or stage is None:
-            self.mnist_test = self.get_fashion(
-                self.data_dir, train=False, transform=self.transform
-            )
-
-    def get_fashion(self, data_dir, train, transform):
-        mnist = FashionMNIST(data_dir, train=train, transform=transform)
         if self.labels is None:
             return mnist
 

@@ -1,11 +1,10 @@
 import torch
 import torch.nn.functional as F
-from kornia.geometry.transform import affine, affine3d
+from kornia.geometry.transform import affine
 from torch import einsum, nn
 
-from lib.helpers import divide_chunks, sparsify_features
-from lib.modules.activation import TopKActivation
-from lib.modules.basic import CosineLoss, FakeClip
+from lib.helpers import divide_chunks, normalize_weight, normalize_weight_
+from lib.modules.base import Module
 
 
 def prune_coordinate(t, idx, min=None, max=None):
@@ -22,42 +21,6 @@ def prune_pose(pose, diff_min=0.25, diff_max=0.25):
         prune_coordinate(p, (0, 1), -diff_min, diff_max)
         prune_coordinate(p, (1, 1), 1 - diff_min, 1 + diff_max)
         prune_coordinate(p, (1, 0), -diff_min, diff_max)
-
-
-def norm(w, p=2.0, dim=-1):
-    return torch.norm(w, p=p, dim=dim, keepdim=True) + 1e-10
-
-
-def normalize_weight(w, p=2.0, dim=-1):
-    return w / norm(w, p=p, dim=dim)
-
-
-def normalize_weight_(w, p=2.0, dim=-1):
-    return w.div_(norm(w, p=p, dim=dim))
-
-
-class Sampler(nn.Module):
-    def __init__(
-        self,
-        n_samples=1,
-        learnable=True,
-    ):
-        super().__init__()
-        self.n_samples = n_samples
-        self.learnable = learnable
-
-        with torch.no_grad():
-            self.init_weights()
-            self.regularize_weights()
-
-    def init_weights(self):
-        pass
-
-    def regularize_weights(self):
-        pass
-
-    def forward(self, x, normalize=False, inverse=False):
-        pass
 
 
 class DummySampler(Sampler):
