@@ -104,7 +104,7 @@ class RotationSampler(SFSampler):
         self.after_init()
 
     def init_weights(self):
-        self.poses = 360 * torch.arange(self.n_samples) / self.samples
+        self.poses = 360 * torch.arange(self.n_samples) / self.n_samples
 
     def forward(self, x, normalize=True):
         # x - f c h w

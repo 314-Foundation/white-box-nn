@@ -72,7 +72,7 @@ class TwoStepFunction(Module):
             self.scales.clip_(0.001, 2.0)
 
     def softsign(self, x, threshold, scale, internal):
-        a = self.a0 if threshold > 0 else self.a1
+        a = self.a1 if threshold > 0 else self.a0
 
         x = x - threshold
         x = x / (scale + x.abs())
@@ -173,7 +173,7 @@ class AffineLayer(SFLayer):
     def forward(self, x, with_features=False):
         # x - b c h w
         ww = self.get_weight()  # f p c h w
-        x, ww = x.flatten(1), ww.flatten(1)
+        x, ww = x.flatten(1), ww.flatten(2)
 
         scores = einsum("b i, f p i -> b p f", x, ww)
 
@@ -204,7 +204,7 @@ class ConvLayer(SFLayer):
     def __init__(
         self,
         sampler,
-        out_dim,
+        n_kernels,
         kernel_size=5,
         act=None,
         add_bias=False,
@@ -212,20 +212,21 @@ class ConvLayer(SFLayer):
         super().__init__(sampler)
 
         self.in_channels = 1
-        self.out_dim = out_dim
+        self.n_kernels = n_kernels
         self.kernel_size = kernel_size
 
         self.act = act or nn.Identity()
 
         self.add_bias = add_bias
-        self.bias = nn.Parameter(torch.zeros((1, self.out_dim, 1, 1)))
+        # self.bias = nn.Parameter(torch.zeros((1, self.n_kernels, 1, 1)))
+        self.bias = nn.Parameter(torch.zeros((1,)))
 
         self.after_init()
 
     def init_weights(self):
         self.conv = nn.Conv2d(
             self.in_channels,
-            self.out_dim,
+            self.n_kernels,
             kernel_size=self.kernel_size,
             padding="same",
             bias=False,
@@ -245,6 +246,9 @@ class ConvLayer(SFLayer):
             w = self.conv.weight
             normalize_weight_(w.flatten(1))
 
+    def get_features(self):
+        return self.conv.weight
+
     def forward(self, x):
         # x - b c H W
         ww = self.get_weight()  # f p c h w
@@ -258,13 +262,14 @@ class ConvLayer(SFLayer):
             self.conv.dilation,
             self.conv.groups,
         )  # b (f p) H W
-        scores = scores.unflatten(0, (self.out_dim, -1))  # b f p H W
-        x, idx = scores.max(dim=2)  # b f H W
+        # scores = scores.unflatten(1, (self.n_kernels, -1))  # b f p H W
+        x, idx = scores.max(dim=1)  # b f H W
         x = x / self.kernel_size  # math.sqrt(kernel_dim)
 
         if self.add_bias:
             x = x + self.bias
 
+        x = x[:, None]
         x = self.act(x)
 
         return x

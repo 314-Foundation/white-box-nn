@@ -5,9 +5,10 @@ from torch import nn
 
 
 class Noise(nn.Module):
-    def __init__(self, eps, clip=True, p=0.5):
+    def __init__(self, mean=0.0, scale=0.3, clip=True, p=0.5):
         super().__init__()
-        self.eps = eps
+        self.mean = mean
+        self.scale = scale
         self.clip = clip
         self.p = p
 
@@ -15,7 +16,8 @@ class Noise(nn.Module):
         if random.random() > self.p:
             return x
 
-        x = torch.randn_like(x) * self.eps + x
+        noise = torch.randn_like(x) * self.scale + self.mean
+        x = noise + x
 
         if self.clip:
             x = x.clip(0, 1)
@@ -23,4 +25,6 @@ class Noise(nn.Module):
         return x
 
     def __repr__(self):
-        return f"Noise(eps={self.eps}, p={self.p}, clip={self.clip})"
+        return (
+            f"Noise(mean={self.mean}, scale={self.scale}, p={self.p}, clip={self.clip})"
+        )
