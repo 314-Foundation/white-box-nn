@@ -3,9 +3,9 @@ from torch import nn
 
 
 class Module(nn.Module):
-    def __init__(self):
-        super().__init__()
+    regularize_weights_on_train_batch_end = True
 
+    def after_init(self):
         with torch.no_grad():
             self.init_weights()
             self.regularize_weights()

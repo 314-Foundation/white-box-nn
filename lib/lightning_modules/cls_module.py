@@ -125,9 +125,6 @@ class ClsModule(LightningModule):
         # optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate) # 0.1
         return optimizer
 
-    def on_train_batch_end(self, outputs, batch, batch_idx):
-        self.backbone.regularize_weights()
-
     def log_train(self, res, y, loss):
         self.log("train_loss", loss, prog_bar=True)
         self.train_accuracy(res, y)
@@ -154,3 +151,12 @@ class ClsModule(LightningModule):
         self.log("corr_avg_conf", self.corr_avg_conf, prog_bar=True)
         self.log("miss_avg_conf", self.miss_avg_conf, prog_bar=True)
         self.log("miss_max_conf", self.miss_max_conf, prog_bar=True)
+
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        for m in self.modules():
+            # NOTE - isinstance(m, Module) doesn't work well with jupyter autoreload
+            if (
+                hasattr(m, "regularize_weights_on_train_batch_end")
+                and m.regularize_weights_on_train_batch_end
+            ):
+                m.regularize_weights()
