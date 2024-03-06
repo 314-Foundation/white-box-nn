@@ -76,7 +76,7 @@ class AffineSampler(SFSampler):
         n_repeats = x.shape[0] // self.dim_pose_group
         shape = x.shape[1:]
 
-        poses = [x]
+        poses = []
         for pose in self.poses:
             poses.append(
                 affine(

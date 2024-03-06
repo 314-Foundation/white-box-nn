@@ -196,6 +196,7 @@ class AffineLayer(SFLayer):
         ]  # (b f) i
         features = features * pre_act_x.flatten()[..., None]  # (b f) i
         features = features.unflatten(0, idx.shape)  # b f i
+        features = features.unflatten(2, self.inp_shape)
 
         return x, features
 

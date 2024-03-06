@@ -131,14 +131,14 @@ class ClsModule(LightningModule):
         self.log("train_acc", self.train_accuracy, prog_bar=True)
 
     def log_validation(self, res, y, loss):
-        self.log("val_loss", loss, prog_bar=True)
+        self.log("val_adv_loss", loss, prog_bar=True)
         self.val_accuracy(res, y)
-        self.log("val_acc", self.val_accuracy, prog_bar=True)
+        self.log("val_adv_acc", self.val_accuracy, prog_bar=True)
 
     def log_test(self, res, y, loss):
-        self.log("test_loss", loss, prog_bar=True)
+        self.log("test_adv_loss", loss, prog_bar=True)
         self.test_accuracy(res, y)
-        self.log("test_acc", self.test_accuracy, prog_bar=True)
+        self.log("test_adv_acc", self.test_accuracy, prog_bar=True)
         self.log_confidence(res, y)
 
     def log_confidence(self, res, y):
