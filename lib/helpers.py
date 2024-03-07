@@ -35,7 +35,7 @@ class Helper:
         num = min(len(X), n_row * n_col)
 
         if y is None:
-            y = num * ["--"]
+            y = list(range(num))
         # plot images
         fig, axes = plt.subplots(n_row, n_col, figsize=(max(4, 1.5 * n_col), 2 * n_row))
         for i in range(num):

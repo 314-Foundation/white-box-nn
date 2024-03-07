@@ -120,85 +120,14 @@ class TwoStepFunction(Module):
 
         return x
 
-
-class AffineLayer(SFLayer):
-    def __init__(
-        self,
-        sampler,
-        inp_shape,
-        feature_shape,
-        out_dim,
-        act=None,
-        add_bias=False,
-    ):
-        super().__init__(sampler)
-        self.inp_shape = inp_shape
-        self.inp_dim = torch.prod(torch.tensor(inp_shape))
-        self.feature_shape = feature_shape
-        self.feature_dim = torch.prod(torch.tensor(self.feature_shape))
-        self.out_dim = out_dim
-
-        self.act = act or nn.Identity()
-
-        self.add_bias = add_bias
-        self.bias = nn.Parameter(torch.zeros((1, self.out_dim)))
-
-        self.feature_padding = (
-            (self.inp_shape[1] - self.feature_shape[1]) // 2,
-            (self.inp_shape[1] - self.feature_shape[1]) // 2,
-            (self.inp_shape[2] - self.feature_shape[2]) // 2,
-            (self.inp_shape[2] - self.feature_shape[2]) // 2,
-        )
-
-        self.after_init()
-
-    def init_weights(self):
-        self.features = nn.Parameter(torch.empty((self.out_dim, self.feature_dim)))
-        ff = self.features
-
-        # ff.normal_(0.0, std=1.0)
-        # nn.init.uniform_(ff, -1.0, 1.0)
-        nn.init.kaiming_uniform_(ff, a=2.2236)
-        # normalize_weight_(ff)
-
-    def regularize_weights(self):
-        with torch.no_grad():
-            normalize_weight_(self.features)
-
-    def get_features(self):
-        return F.pad(
-            self.features.unflatten(1, self.feature_shape), self.feature_padding
-        )
-
-    def forward(self, x, with_features=False):
-        # x - b c h w
-        ww = self.get_weight()  # f p c h w
-        x, ww = x.flatten(1), ww.flatten(2)
-
-        scores = einsum("b i, f p i -> b p f", x, ww)
-
-        x, idx = scores.max(dim=1)  # b f
-
-        if self.add_bias:
-            x = x + self.bias
-
-        pre_act_x = x
-        x = self.act(x)
-
-        if not with_features:
-            return x
-
-        idx = idx % self.sampler.n_samples
-
-        # NOTE - the following selects f features for every batch element
-        features = ww[
-            list(range(idx.shape[1])) * idx.shape[0], idx.flatten()
-        ]  # (b f) i
-        features = features * pre_act_x.flatten()[..., None]  # (b f) i
-        features = features.unflatten(0, idx.shape)  # b f i
-        features = features.unflatten(2, self.inp_shape)
-
-        return x, features
+    def __repr__(self):
+        ndigits = 3
+        t0 = round(self.t0.item(), ndigits=ndigits)
+        t1 = round(self.t1.item(), ndigits=ndigits)
+        a0 = round(self.a0.item(), ndigits=ndigits)
+        a1 = round(self.a1.item(), ndigits=ndigits)
+        scales = [round(s.item(), ndigits=ndigits) for s in self.scales]
+        return f"TwoStepFunction({t0}, {t1}, {a0}, {a1}, scales={scales})"
 
 
 class ConvLayer(SFLayer):
@@ -274,3 +203,83 @@ class ConvLayer(SFLayer):
         x = self.act(x)
 
         return x
+
+
+class AffineLayer(SFLayer):
+    def __init__(
+        self,
+        sampler,
+        inp_shape,
+        feature_shape,
+        out_dim,
+        act=None,
+        add_bias=False,
+    ):
+        super().__init__(sampler)
+        self.inp_shape = inp_shape
+        self.inp_dim = torch.prod(torch.tensor(inp_shape))
+        self.feature_shape = feature_shape
+        self.feature_dim = torch.prod(torch.tensor(self.feature_shape))
+        self.out_dim = out_dim
+
+        self.act = act or nn.Identity()
+
+        self.add_bias = add_bias
+        self.bias = nn.Parameter(torch.zeros((1, self.out_dim)))
+
+        self.feature_padding = (
+            (self.inp_shape[1] - self.feature_shape[1]) // 2,
+            (self.inp_shape[1] - self.feature_shape[1]) // 2,
+            (self.inp_shape[2] - self.feature_shape[2]) // 2,
+            (self.inp_shape[2] - self.feature_shape[2]) // 2,
+        )
+
+        self.after_init()
+
+    def init_weights(self):
+        self.features = nn.Parameter(torch.empty((self.out_dim, self.feature_dim)))
+        ff = self.features
+
+        # ff.normal_(0.0, std=1.0)
+        # nn.init.uniform_(ff, -1.0, 1.0)
+        nn.init.kaiming_uniform_(ff, a=2.2236)
+        # normalize_weight_(ff)
+
+    def regularize_weights(self):
+        with torch.no_grad():
+            normalize_weight_(self.features)
+
+    def get_features(self):
+        return F.pad(
+            self.features.unflatten(1, self.feature_shape), self.feature_padding
+        )
+
+    def forward(self, x, with_features=False):
+        # x - b c h w
+        ww = self.get_weight()  # f p c h w
+        x, ww = x.flatten(1), ww.flatten(2)
+
+        scores = einsum("b i, f p i -> b p f", x, ww)
+
+        x, idx = scores.max(dim=1)  # b f
+
+        if self.add_bias:
+            x = x + self.bias
+
+        pre_act_x = x
+        x = self.act(x)
+
+        if not with_features:
+            return x
+
+        idx = idx % self.sampler.n_samples
+
+        # NOTE - the following selects f features for every batch element
+        features = ww[
+            list(range(idx.shape[1])) * idx.shape[0], idx.flatten()
+        ]  # (b f) i
+        # features = features * pre_act_x.flatten()[..., None]  # (b f) i
+        features = features.unflatten(0, idx.shape)  # b f i
+        features = features.unflatten(2, self.inp_shape)
+
+        return x, features

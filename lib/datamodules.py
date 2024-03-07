@@ -80,15 +80,14 @@ class MNISTDataModule(LightningDataModule):
         batch_size=200,
         labels=None,
         shape=(28, 28),
-        n_train_samples=None,
     ):
         super().__init__()
         self.data_dir = data_dir
-        # self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 
         self.transform = transforms.Compose(
             [
                 transforms.RandomCrop(shape, padding=0),
+                # transforms.Normalize((0.1307,), (0.3081,))
                 transforms.ToTensor(),
             ]
         )
