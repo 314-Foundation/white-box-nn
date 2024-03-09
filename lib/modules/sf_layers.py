@@ -238,12 +238,12 @@ class AffineLayer(SFLayer):
 
     def init_weights(self):
         self.features = nn.Parameter(torch.empty((self.out_dim, self.feature_dim)))
-        ff = self.features
+        f = self.features
 
-        # ff.normal_(0.0, std=1.0)
-        # nn.init.uniform_(ff, -1.0, 1.0)
-        nn.init.kaiming_uniform_(ff, a=2.2236)
-        # normalize_weight_(ff)
+        # f.normal_(0.0, std=1.0)
+        # nn.init.uniform_(f, -1.0, 1.0)
+        nn.init.kaiming_uniform_(f, a=2.2236)
+        # normalize_weight_(f)
 
     def regularize_weights(self):
         with torch.no_grad():
@@ -266,7 +266,7 @@ class AffineLayer(SFLayer):
         if self.add_bias:
             x = x + self.bias
 
-        pre_act_x = x
+        # pre_act_x = x
         x = self.act(x)
 
         if not with_features:

@@ -8,7 +8,7 @@ from lib.modules.base import Module
 
 
 class SFSampler(Module):
-    def __init__(self, n_samples):
+    def __init__(self, n_samples=1):
         super().__init__()
         self.n_samples = n_samples
 
@@ -98,13 +98,14 @@ class AffineSampler(SFSampler):
 
 
 class RotationSampler(SFSampler):
-    def __init__(self, n_samples):
+    def __init__(self, n_samples, max_rotation=360):
         super().__init__(n_samples)
+        self.max_rotation = max_rotation
 
         self.after_init()
 
     def init_weights(self):
-        self.poses = 360 * torch.arange(self.n_samples) / self.n_samples
+        self.poses = self.max_rotation * torch.arange(self.n_samples) / self.n_samples
 
     def forward(self, x, normalize=True):
         # x - f c h w

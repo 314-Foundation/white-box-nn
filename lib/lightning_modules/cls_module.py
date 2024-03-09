@@ -3,17 +3,9 @@ import random
 import torch
 from pytorch_lightning import LightningModule
 from torch import nn
-from torchmetrics import Accuracy, MaxMetric, MeanMetric
+from torchmetrics import Accuracy, PrecisionRecallCurve
 
 from ..helpers import hh
-
-
-def compute_confidence(res, y):
-    conf, preds = res.softmax(dim=1).max(dim=1)
-    correct_conf = conf[preds == y]
-    miss_conf = conf[preds != y]
-
-    return correct_conf, miss_conf
 
 
 class ClsModule(LightningModule):
@@ -50,9 +42,7 @@ class ClsModule(LightningModule):
         self.val_accuracy = Accuracy(task="multiclass", num_classes=n_classes)
         self.test_accuracy = Accuracy(task="multiclass", num_classes=n_classes)
 
-        self.corr_avg_conf = MeanMetric()
-        self.miss_avg_conf = MeanMetric()
-        self.miss_max_conf = MaxMetric()
+        self.credibility = PrecisionRecallCurve(task="binary")
 
     def forward(self, x):
         x = self.backbone(x)
@@ -111,7 +101,7 @@ class ClsModule(LightningModule):
     def test_noise(self, x, y):
         eps, step_size = self.noise_eps, self.noise_eps_step
         return hh.compute_advs(
-            self, x, y, eps=eps, step_size=step_size, Nsteps=20, random_start=True
+            self, x, y, eps=eps, step_size=step_size, Nsteps=40, random_start=True
         )
 
     def configure_optimizers(self):
@@ -139,18 +129,11 @@ class ClsModule(LightningModule):
         self.log("test_adv_loss", loss, prog_bar=True)
         self.test_accuracy(res, y)
         self.log("test_adv_acc", self.test_accuracy, prog_bar=True)
-        self.log_confidence(res, y)
 
-    def log_confidence(self, res, y):
-        corr_conf, miss_conf = compute_confidence(res, y)
+        confidence, preds = res.softmax(dim=1).max(dim=1)
+        correct = (preds == y).long()
 
-        self.corr_avg_conf(corr_conf, torch.ones_like(corr_conf))
-        self.miss_avg_conf(miss_conf, torch.ones_like(miss_conf))
-        self.miss_max_conf(miss_conf)
-
-        self.log("corr_avg_conf", self.corr_avg_conf, prog_bar=True)
-        self.log("miss_avg_conf", self.miss_avg_conf, prog_bar=True)
-        self.log("miss_max_conf", self.miss_max_conf, prog_bar=True)
+        self.credibility(confidence, correct)
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
         for m in self.modules():

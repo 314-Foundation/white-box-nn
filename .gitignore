@@ -170,5 +170,7 @@ __pycache__
 
 logs/*
 data/*
-
+jupyter/main_edge.ipynb
 # /**/.amlignore*
+
+/**/.DS_Store
