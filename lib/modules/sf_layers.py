@@ -138,6 +138,7 @@ class ConvLayer(SFLayer):
         kernel_size=5,
         act=None,
         add_bias=False,
+        rescale=True,
     ):
         super().__init__(sampler)
 
@@ -148,8 +149,10 @@ class ConvLayer(SFLayer):
         self.act = act or nn.Identity()
 
         self.add_bias = add_bias
+        self.rescale = rescale
         # self.bias = nn.Parameter(torch.zeros((1, self.n_kernels, 1, 1)))
         self.bias = nn.Parameter(torch.zeros((1,)))
+        self.scale = nn.Parameter(torch.ones((1,)))
 
         self.after_init()
 
@@ -196,6 +199,8 @@ class ConvLayer(SFLayer):
         x, idx = scores.max(dim=1)  # b f H W
         x = x / self.kernel_size  # math.sqrt(kernel_dim)
 
+        if self.rescale:
+            x = x * self.scale
         if self.add_bias:
             x = x + self.bias
 
@@ -214,6 +219,7 @@ class AffineLayer(SFLayer):
         out_dim,
         act=None,
         add_bias=False,
+        rescale=True,
     ):
         super().__init__(sampler)
         self.inp_shape = inp_shape
@@ -225,7 +231,10 @@ class AffineLayer(SFLayer):
         self.act = act or nn.Identity()
 
         self.add_bias = add_bias
+        self.rescale = rescale
         self.bias = nn.Parameter(torch.zeros((1, self.out_dim)))
+        self.scale = nn.Parameter(torch.ones((1,)))
+        # self.scale = nn.Parameter(torch.ones((1, self.out_dim)))
 
         self.feature_padding = (
             (self.inp_shape[1] - self.feature_shape[1]) // 2,
@@ -263,10 +272,11 @@ class AffineLayer(SFLayer):
 
         x, idx = scores.max(dim=1)  # b f
 
+        if self.rescale:
+            x = x * self.scale
         if self.add_bias:
             x = x + self.bias
 
-        # pre_act_x = x
         x = self.act(x)
 
         if not with_features:
@@ -278,7 +288,7 @@ class AffineLayer(SFLayer):
         features = ww[
             list(range(idx.shape[1])) * idx.shape[0], idx.flatten()
         ]  # (b f) i
-        # features = features * pre_act_x.flatten()[..., None]  # (b f) i
+        # features = features * x.flatten()[..., None]  # (b f) i
         features = features.unflatten(0, idx.shape)  # b f i
         features = features.unflatten(2, self.inp_shape)
 
