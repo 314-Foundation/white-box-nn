@@ -42,7 +42,7 @@ class ClsModule(LightningModule):
         self.val_accuracy = Accuracy(task="multiclass", num_classes=n_classes)
         self.test_accuracy = Accuracy(task="multiclass", num_classes=n_classes)
 
-        self.credibility = PrecisionRecallCurve(task="binary")
+        self.reliability_curve = PrecisionRecallCurve(task="binary")
 
     def forward(self, x):
         x = self.backbone(x)
@@ -133,7 +133,7 @@ class ClsModule(LightningModule):
         confidence, preds = res.softmax(dim=1).max(dim=1)
         correct = (preds == y).long()
 
-        self.credibility(confidence, correct)
+        self.reliability_curve(confidence, correct)
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
         for m in self.modules():
