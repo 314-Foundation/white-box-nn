@@ -138,7 +138,7 @@ class ConvLayer(SFLayer):
         kernel_size=5,
         act=None,
         add_bias=False,
-        rescale=True,
+        rescale=False,
     ):
         super().__init__(sampler)
 
@@ -197,7 +197,7 @@ class ConvLayer(SFLayer):
         )  # b (f p) H W
         # scores = scores.unflatten(1, (self.n_kernels, -1))  # b f p H W
         x, idx = scores.max(dim=1)  # b f H W
-        x = x / self.kernel_size  # math.sqrt(kernel_dim)
+        x = x / self.kernel_size  # math.sqrt(kernel_dim) - to keep the scale of input
 
         if self.rescale:
             x = x * self.scale
@@ -219,7 +219,7 @@ class AffineLayer(SFLayer):
         out_dim,
         act=None,
         add_bias=False,
-        rescale=True,
+        rescale=False,
     ):
         super().__init__(sampler)
         self.inp_shape = inp_shape
@@ -233,8 +233,8 @@ class AffineLayer(SFLayer):
         self.add_bias = add_bias
         self.rescale = rescale
         self.bias = nn.Parameter(torch.zeros((1, self.out_dim)))
-        self.scale = nn.Parameter(torch.ones((1,)))
-        # self.scale = nn.Parameter(torch.ones((1, self.out_dim)))
+        # self.scale = nn.Parameter(torch.ones((1,)))
+        self.scale = nn.Parameter(torch.ones((1, self.out_dim)))
 
         self.feature_padding = (
             (self.inp_shape[1] - self.feature_shape[1]) // 2,

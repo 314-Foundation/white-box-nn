@@ -18,6 +18,37 @@ class SFSampler(Module):
         return x
 
 
+class RotationSampler(SFSampler):
+    def __init__(self, n_samples, max_rotation=360):
+        super().__init__(n_samples)
+        self.max_rotation = max_rotation
+
+        self.after_init()
+
+    def init_weights(self):
+        self.poses = self.max_rotation * torch.arange(self.n_samples) / self.n_samples
+
+    def forward(self, x, normalize=True):
+        # x - f c h w
+
+        shape = x.shape[1:]
+        ch, cw = shape[1] // 2, shape[2] // 2
+        center = torch.tensor([ch, cw]).float()
+
+        poses = []
+        for angle in self.poses:
+            poses.append(rotate(x, angle, center=center))
+
+        poses = torch.stack(poses, dim=1)  # f p c h w
+
+        if normalize:
+            poses = poses.flatten(2)
+            poses = normalize_weight(poses)
+            poses = poses.unflatten(2, shape)
+
+        return poses
+
+
 def prune_coordinate(t, idx, min=None, max=None):
     val = t[idx]
     if min is not None and val < min:
@@ -86,37 +117,6 @@ class AffineSampler(SFSampler):
                     padding_mode="zeros",
                 )
             )
-
-        poses = torch.stack(poses, dim=1)  # f p c h w
-
-        if normalize:
-            poses = poses.flatten(2)
-            poses = normalize_weight(poses)
-            poses = poses.unflatten(2, shape)
-
-        return poses
-
-
-class RotationSampler(SFSampler):
-    def __init__(self, n_samples, max_rotation=360):
-        super().__init__(n_samples)
-        self.max_rotation = max_rotation
-
-        self.after_init()
-
-    def init_weights(self):
-        self.poses = self.max_rotation * torch.arange(self.n_samples) / self.n_samples
-
-    def forward(self, x, normalize=True):
-        # x - f c h w
-
-        shape = x.shape[1:]
-        ch, cw = shape[1] // 2, shape[2] // 2
-        center = torch.tensor([ch, cw]).float()
-
-        poses = []
-        for angle in self.poses:
-            poses.append(rotate(x, angle, center=center))
 
         poses = torch.stack(poses, dim=1)  # f p c h w
 

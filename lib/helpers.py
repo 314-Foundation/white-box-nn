@@ -25,7 +25,7 @@ def normalize_weight_(w, p=2.0, dim=-1):
 class Helper:
 
     @staticmethod
-    def plot_example(X, y=None, n_row=3, n_col=16, cmap="bwr"):
+    def plot_example(X, y=None, n_row=3, n_col=16, cmap="bwr", no_y_labels=True):
         X = X.detach()
         X = np.transpose(X, (0, 2, 3, 1))
         if X.shape[-1] == 1:
@@ -46,6 +46,8 @@ class Helper:
             else:
                 ax = axes[i // n_col, i % n_col]
             ax.imshow(X[i], cmap=cmap)
+            if no_y_labels:
+                ax.set_yticklabels([])
             ax.set_title("{}".format(y[i]))
         plt.tight_layout()
         plt.show()

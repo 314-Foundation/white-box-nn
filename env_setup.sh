@@ -21,6 +21,6 @@ pip3 install --upgrade pip
 # pip3 install pytorch-lightning \
 pip3 install robbytorch \
             adversarial-robustness-toolbox \
-            multiprocess \  # to fix adversarial-robustness-toolbox error
+            multiprocess \
             einops \
             kornia
