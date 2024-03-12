@@ -1,14 +1,21 @@
-def get_model():
-    augment = nn.Sequential(
-        Noise(mean=0.05, scale=0.25, clip=True, p=0.7),
-    )
+from collections import OrderedDict
 
-    latent_dim = 6
+import torch
+from torch import nn
+
+from lib.modules.augment import Noise
+from lib.modules.sf_layers import AffineLayer, ConvLayer, TwoPieceLayer, TwoStepFunction
+from lib.modules.sf_samplers import AffineSampler, RotationSampler, TwoPieceRollSampler
+
+IMG_SHAPE = (1, 28, 28)
+
+
+def get_model(latent_dim=8, img_shape=IMG_SHAPE):
 
     pixel_layer = TwoStepFunction(10)
 
     conv_layer = ConvLayer(
-        sampler=RotationSampler(16),
+        sampler=RotationSampler(32),
         n_kernels=2,
         kernel_size=5,
         act=nn.ReLU(),
@@ -18,34 +25,16 @@ def get_model():
 
     affine_layer = AffineLayer(
         sampler=AffineSampler(32, dim_pose_group=latent_dim),
-        inp_shape=IMG_SHAPE,
-        feature_shape=(1, 18, 18),
+        inp_shape=img_shape,
+        feature_shape=(1, 20, 20),
         out_dim=latent_dim,
         act=nn.ReLU(),
         # add_bias=True,
         # rescale=True,
     )
 
-    # head = nn.Linear(
-    #     latent_dim,
-    #     N_CLASSES,
-    #     bias=False,
-    #     # bias=True,
-    # )
-    # with torch.no_grad():
-    #     w = head.weight
-    #     t0 = torch.tensor([1., 0.1, 0., 0.])
-    #     t1 = torch.roll(t0, 2, dims=0)
-    #     # t0, t1 = torch.arange(1, -1, step=-0.35), torch.arange(-1, 1, step=0.35)
-    #     t = torch.stack([t0, t1], dim=0)
-    #     t = t / 5
-    #     w.data = t
-
-    # nn.init.eye_(w)
-    # w.add_(torch.randn_like(w) * 0.1)
-
     sparse = TwoPieceLayer(
-        sampler=TwoPieceRollSampler(3, mask_grad=True),
+        sampler=TwoPieceRollSampler(latent_dim // 2, mask_grad=True),
         inp_dim=latent_dim,
     )
 
@@ -60,16 +49,35 @@ def get_model():
         )
     )
 
-    model = ClsModule(
-        learning_rate=3e-3,  # BEST
-        # weight_decay=3e-7,# 0.00001,
-        weight_decay=3e-6,  # BEST?
-        # weight_decay=0.0,
-        noise_eps=EPS,
-        adv_prob=0.0,
-        # adv_prob=1.0,
-        val_adv_prob=1.0,
-        n_classes=N_CLASSES,
-        augment=augment,
-        backbone=backbone,
-    )
+    return backbone
+
+
+def visualize_processing_steps(model, x):
+    x0 = model.pixel(x)
+    x1 = model.conv(x0)
+    x2, f = model.affine(x1, with_features=True)
+    x3 = model.sparse(x2)
+
+    fx = f + 0.1 * x1[:, None]
+
+    per_feature = x2.shape[1] // 2
+    ff0, ff1 = torch.split(x2, per_feature, dim=1)
+
+    val0, idx0 = ff0.max(dim=1)
+    f0 = fx[range(len(idx0)), idx0]
+
+    val1, idx1 = ff1.max(dim=1)
+    f1 = fx[range(len(idx1)), idx1 + per_feature]
+
+    y = [
+        (round(scores[0].item(), ndigits=2), round(scores[1].item(), ndigits=2))
+        for scores in x3.softmax(dim=1)
+    ]
+    y += ["pixel" for _ in range(len(x3))]
+    y += ["conv" for _ in range(len(x3))]
+    y += [round(e.item(), ndigits=2) for e in val0]
+    y += [round(e.item(), ndigits=2) for e in val1]
+
+    ret = torch.cat([x, x0, x1, f0, f1], dim=0)
+
+    return ret, y

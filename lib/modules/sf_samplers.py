@@ -4,6 +4,7 @@ from kornia.geometry.transform import affine, rotate
 from torch import nn
 
 from lib.helpers import divide_chunks, normalize_weight
+from lib.modules.activation import TopKActivation
 from lib.modules.base import Module
 
 
@@ -124,5 +125,56 @@ class AffineSampler(SFSampler):
             poses = poses.flatten(2)
             poses = normalize_weight(poses)
             poses = poses.unflatten(2, shape)
+
+        return poses
+
+
+class TwoPieceRollSampler(SFSampler):
+    def __init__(self, n_samples, mask_grad=True):
+        super().__init__(n_samples)
+        self.mask_grad = mask_grad
+        self.topk = TopKActivation(1, dim=-1)
+
+        self.after_init()
+
+    def init_weights(self):
+        self.poses = list(range(self.n_samples))
+
+    def roll(self, x):
+        poses = []
+        for pose in self.poses:
+            xx = torch.roll(x, shifts=pose, dims=-1)
+            poses.append(xx)
+
+        poses = torch.stack(poses, dim=1)  # f p i
+
+        if self.mask_grad:
+            poses = self.topk(poses)
+
+        return poses
+
+    def repeat(self, x):
+        x = x[:, None]
+        x = x.repeat((1, self.n_samples, 1))
+        return x
+
+    def forward(self, x, normalize=False):
+        # x - f i
+        f, i = x.shape
+        assert f == 2
+        assert i % f == 0
+        split_size = i // f
+
+        fs = torch.split(x, split_size, dim=1)  # [(f s), (f s), ...]
+        fps = [self.roll(f) for f in fs]  # [(f p s), (f p s), ...]
+        fps_id = [self.repeat(f) for f in fs]  # [(f p s), (f p s), ...]
+
+        f0 = torch.cat([fps[0], fps_id[1]], dim=-1)
+        f1 = torch.cat([fps_id[0], fps[1]], dim=-1)
+
+        poses = torch.stack([f0[0], f1[1]], dim=0)
+
+        if normalize:
+            poses = normalize_weight(poses)
 
         return poses

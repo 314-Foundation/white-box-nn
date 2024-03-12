@@ -293,3 +293,50 @@ class AffineLayer(SFLayer):
         features = features.unflatten(2, self.inp_shape)
 
         return x, features
+
+
+class TwoPieceLayer(SFLayer):
+    def __init__(
+        self,
+        sampler,
+        inp_dim,
+        act=None,
+    ):
+        super().__init__(sampler)
+        out_dim = 2
+        assert inp_dim % out_dim == 0
+
+        self.inp_dim = inp_dim
+        self.out_dim = out_dim
+        self.feature_dim = inp_dim
+
+        self.act = act or nn.Identity()
+
+        self.after_init()
+
+    def init_weights(self):
+        self.features = nn.Parameter(torch.zeros(self.out_dim, self.feature_dim))
+
+        with torch.no_grad():
+            f = self.features
+
+            idx1 = self.inp_dim // 2
+            f[0, 0] = 1.0
+            f[1, idx1] = 1.0
+
+            f.div_(2.0)
+            f.add_(-0.1)
+
+    def get_features(self):
+        return self.features
+
+    def forward(self, x):
+        # x - b i
+        ww = self.get_weight()  # f p i
+        scores = einsum("b i, f p i -> b p f", x, ww)
+
+        x, idx = scores.max(dim=1)  # b f
+
+        x = self.act(x)
+
+        return x
