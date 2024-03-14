@@ -40,7 +40,7 @@ class SFLayer(Module):
 
 
 class TwoStepFunction(Module):
-    """Simplified integer-valued SFLayer for inputs in [0, 1]"""
+    """Simplified real-valued SFLayer for inputs in [0, 1]"""
 
     def __init__(
         self,
