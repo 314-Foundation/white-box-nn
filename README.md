@@ -1,5 +1,5 @@
 # white-box-nn
-This is a source code for the paper "A Conceptual Framework For White Box Neural Networks".
+This repository contains source code for the "A Conceptual Framework For White Box Neural Networks" paper.
 
 ## Recreate env
 
@@ -11,4 +11,4 @@ conda activate wbnn
 bash env_setup.sh
 ```
 
-To recreate the experiments run the provided jupyter notebooks with the adequate kernel. Note that GPU is not required and CPU-only PyTorch installation will suffice. In fact the code wasn't even tested on GPU (however it should be straightforward to adapt it to run on CUDA if you feel the need for it).
+To recreate the experiments run the provided jupyter notebooks with the adequate kernel (wbnn conda env). Note that GPU is not required and CPU-only PyTorch installation will suffice. It should be straightforward to adapt the code to run on CUDA.

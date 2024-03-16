@@ -295,15 +295,15 @@ class AffineLayer(SFLayer):
         return x, features
 
 
-class TwoPieceLayer(SFLayer):
+class PiecewiseXorLayer(SFLayer):
     def __init__(
         self,
         sampler,
         inp_dim,
+        out_dim,
         act=None,
     ):
         super().__init__(sampler)
-        out_dim = 2
         assert inp_dim % out_dim == 0
 
         self.inp_dim = inp_dim
@@ -319,10 +319,10 @@ class TwoPieceLayer(SFLayer):
 
         with torch.no_grad():
             f = self.features
+            step = self.feature_dim // self.out_dim
 
-            idx1 = self.inp_dim // 2
-            f[0, 0] = 1.0
-            f[1, idx1] = 1.0
+            for i, j in enumerate(range(0, self.feature_dim, step)):
+                f[i, j] = 1.0
 
             f.div_(2.0)
             f.add_(-0.1)

@@ -129,7 +129,7 @@ class AffineSampler(SFSampler):
         return poses
 
 
-class TwoPieceRollSampler(SFSampler):
+class PiecewiseRollSampler(SFSampler):
     def __init__(self, n_samples, mask_grad=True):
         super().__init__(n_samples)
         self.mask_grad = mask_grad
@@ -161,18 +161,27 @@ class TwoPieceRollSampler(SFSampler):
     def forward(self, x, normalize=False):
         # x - f i
         f, i = x.shape
-        assert f == 2
         assert i % f == 0
         split_size = i // f
 
         fs = torch.split(x, split_size, dim=1)  # [(f s), (f s), ...]
-        fps = [self.roll(f) for f in fs]  # [(f p s), (f p s), ...]
-        fps_id = [self.repeat(f) for f in fs]  # [(f p s), (f p s), ...]
+        fps = [self.roll(ff) for ff in fs]  # [(f p s), (f p s), ...]
+        fps_id = [self.repeat(ff) for ff in fs]  # [(f p s), (f p s), ...]
 
-        f0 = torch.cat([fps[0], fps_id[1]], dim=-1)
-        f1 = torch.cat([fps_id[0], fps[1]], dim=-1)
+        fis = []
+        for j, fi in enumerate(fps):
+            left = torch.cat(fps_id[:j], dim=-1) if j > 0 else None
+            right = torch.cat(fps_id[(j + 1) :], dim=-1) if (j + 1) < len(fps) else None
+            if left is not None:
+                fi = torch.cat([left, fi], dim=-1)
+            if right is not None:
+                fi = torch.cat([fi, right], dim=-1)
 
-        poses = torch.stack([f0[0], f1[1]], dim=0)
+            # fi - f p i
+            fis.append(fi)
+
+        fis = [fi[j] for j, fi in enumerate(fis)]  # [(p i), (p i), ...]
+        poses = torch.stack(fis, dim=0)  # f p i
 
         if normalize:
             poses = normalize_weight(poses)
