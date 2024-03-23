@@ -18,7 +18,7 @@ conda install pandas \
 # Update pip
 pip3 install --upgrade pip
 
-# pip3 install pytorch-lightning \
+# pip3 install lightning \
 pip3 install robbytorch \
             adversarial-robustness-toolbox \
             multiprocess \
