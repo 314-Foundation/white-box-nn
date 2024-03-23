@@ -27,14 +27,16 @@ class RotationSampler(SFSampler):
         self.after_init()
 
     def init_weights(self):
-        self.poses = self.max_rotation * torch.arange(self.n_samples) / self.n_samples
+        self.poses = nn.Parameter(
+            self.max_rotation * torch.arange(self.n_samples) / self.n_samples
+        )
 
     def forward(self, x, normalize=True):
         # x - f c h w
 
         shape = x.shape[1:]
         ch, cw = shape[1] // 2, shape[2] // 2
-        center = torch.tensor([ch, cw]).float()
+        center = torch.tensor([ch, cw]).float().to(x.device)
 
         poses = []
         for angle in self.poses:

@@ -26,7 +26,7 @@ class Helper:
 
     @staticmethod
     def plot_example(X, y=None, n_row=3, n_col=16, cmap="bwr", no_y_labels=True):
-        X = X.detach()
+        X = X.detach().cpu()
         X = np.transpose(X, (0, 2, 3, 1))
         if X.shape[-1] == 1:
             X = X.squeeze(-1)
