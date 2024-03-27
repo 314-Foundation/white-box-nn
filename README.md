@@ -1,5 +1,5 @@
 # white-box-nn
-This repository contains source code for the [A Conceptual Framework For White Box Neural Networks](https://arxiv.org/abs/2403.09863) paper.
+The official PyTorch implementation of paper [Towards White Box Deep Learning](https://arxiv.org/abs/2403.09863).
 
 ## Recreate env
 
